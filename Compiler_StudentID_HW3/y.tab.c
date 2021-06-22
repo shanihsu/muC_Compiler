@@ -652,10 +652,10 @@ static const yytype_int16 yyrline[] =
      263,   267,   290,   294,   300,   301,   301,   319,   320,   321,
      322,   323,   327,   331,   335,   336,   337,   338,   339,   340,
      344,   345,   349,   350,   351,   355,   356,   357,   361,   362,
-     363,   367,   368,   371,   389,   396,   402,   408,   417,   433,
-     438,   446,   479,   483,   484,   485,   486,   487,   488,   492,
-     509,   529,   533,   533,   541,   542,   543,   547,   556,   566,
-     570,   574,   578,   582,   586,   587,   588
+     363,   367,   368,   371,   389,   396,   402,   410,   420,   436,
+     441,   449,   482,   486,   487,   488,   489,   490,   491,   495,
+     512,   532,   536,   536,   544,   545,   546,   550,   559,   569,
+     573,   577,   581,   585,   589,   590,   591
 };
 #endif
 
@@ -2011,23 +2011,26 @@ yyreduce:
         char *type2 = lookup_type((yyvsp[0].ident_val));
         (yyval.type_val)=(yyvsp[-2].type_val);
         printf("%c to %c\n", toupper(type2[0]), toupper(type1[0]));
+        fprintf(fout, "%cload %d\n", type2[0], lookup_symbol((yyvsp[0].ident_val), 0));
+        fprintf(fout, "%c2%c\n", type2[0], type1[0]);
     }
-#line 2016 "y.tab.c"
+#line 2018 "y.tab.c"
     break;
 
   case 67:
-#line 408 "compiler_hw3.y"
+#line 410 "compiler_hw3.y"
                                  {
         char *type1 = (yyvsp[-2].type_val);
         char *type2 = lookup_type((yyvsp[0].type_val));
         (yyval.type_val)=(yyvsp[-2].type_val);
         printf("%c to %c\n", toupper(type2[0]), toupper(type1[0]));
+        fprintf(fout, "%c2%c\n", type2[0], type1[0]);
     }
-#line 2027 "y.tab.c"
+#line 2030 "y.tab.c"
     break;
 
   case 68:
-#line 417 "compiler_hw3.y"
+#line 420 "compiler_hw3.y"
                            {
         if (strcmp((yyvsp[-2].type_val), "int") == 0)
             fprintf(fout, "ldc 0\n");
@@ -2044,31 +2047,31 @@ yyreduce:
             printf("> Insert {%s} into symbol table (scope level: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
         }
     }
-#line 2048 "y.tab.c"
+#line 2051 "y.tab.c"
     break;
 
   case 69:
-#line 433 "compiler_hw3.y"
+#line 436 "compiler_hw3.y"
                                              {
         insert_symbol((yyvsp[-3].ident_val), (yyvsp[-4].type_val), 0);
         int row_num = t[scope_num-1].row_num-1;
         printf("> Insert {%s} into symbol table (scope level: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
     }
-#line 2058 "y.tab.c"
+#line 2061 "y.tab.c"
     break;
 
   case 70:
-#line 438 "compiler_hw3.y"
+#line 441 "compiler_hw3.y"
                                                     {
         insert_symbol((yyvsp[-4].ident_val), (yyvsp[-5].type_val), 1);
         int row_num = t[scope_num-1].row_num-1;
         printf("> Insert {%s} into symbol table (scope level: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
     }
-#line 2068 "y.tab.c"
+#line 2071 "y.tab.c"
     break;
 
   case 71:
-#line 446 "compiler_hw3.y"
+#line 449 "compiler_hw3.y"
                                       {
         char *first = lookup_type((yyvsp[-2].type_val));
         char *third = lookup_type((yyvsp[0].type_val));
@@ -2099,11 +2102,11 @@ yyreduce:
         else
             fprintf(fout, "%cstore %d\n", first[0], addr);
     }
-#line 2103 "y.tab.c"
+#line 2106 "y.tab.c"
     break;
 
   case 79:
-#line 492 "compiler_hw3.y"
+#line 495 "compiler_hw3.y"
                 {
         printf("INC\n");
         int addr = lookup_symbol((yyvsp[-1].ident_val), 0);
@@ -2121,11 +2124,11 @@ yyreduce:
             fprintf(fout, "istore %d\n", addr);
         }
     }
-#line 2125 "y.tab.c"
+#line 2128 "y.tab.c"
     break;
 
   case 80:
-#line 509 "compiler_hw3.y"
+#line 512 "compiler_hw3.y"
                 {
         printf("DEC\n");
         int addr = lookup_symbol((yyvsp[-1].ident_val), 0);
@@ -2143,27 +2146,27 @@ yyreduce:
             fprintf(fout, "istore %d\n", addr);
         }
     }
-#line 2147 "y.tab.c"
+#line 2150 "y.tab.c"
     break;
 
   case 82:
-#line 533 "compiler_hw3.y"
+#line 536 "compiler_hw3.y"
              {
         create_symbol();
     }
-#line 2155 "y.tab.c"
+#line 2158 "y.tab.c"
     break;
 
   case 83:
-#line 535 "compiler_hw3.y"
+#line 538 "compiler_hw3.y"
                           {
         dump_symbol();
     }
-#line 2163 "y.tab.c"
+#line 2166 "y.tab.c"
     break;
 
   case 87:
-#line 547 "compiler_hw3.y"
+#line 550 "compiler_hw3.y"
                                {
         printf("%s\n", (yyvsp[-1].type_val));
         char *a = "ADD", *s = "SUB", *m = "MUL", *q = "QUO", *r = "REM";
@@ -2173,11 +2176,11 @@ yyreduce:
             printf("error:%d: non-bool (type %s) used as for condition\n", yylineno+1,first);
         }
     }
-#line 2177 "y.tab.c"
+#line 2180 "y.tab.c"
     break;
 
   case 88:
-#line 556 "compiler_hw3.y"
+#line 559 "compiler_hw3.y"
                {
         char *b = "bool";
         char *t = lookup_type((yyvsp[0].type_val));
@@ -2185,11 +2188,11 @@ yyreduce:
             printf("error:%d: non-bool (type %s) used as for condition\n", yylineno+1,t);
         }
     }
-#line 2189 "y.tab.c"
+#line 2192 "y.tab.c"
     break;
 
 
-#line 2193 "y.tab.c"
+#line 2196 "y.tab.c"
 
       default: break;
     }
@@ -2421,7 +2424,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 592 "compiler_hw3.y"
+#line 595 "compiler_hw3.y"
 
 
 /* C code section */

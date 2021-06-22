@@ -404,12 +404,15 @@ ConversionExpr
         char *type2 = lookup_type($4);
         $$=$2;
         printf("%c to %c\n", toupper(type2[0]), toupper(type1[0]));
+        fprintf(fout, "%cload %d\n", type2[0], lookup_symbol($4, 0));
+        fprintf(fout, "%c2%c\n", type2[0], type1[0]);
     }
     | LPAREN Type RPAREN Literal {
         char *type1 = $2;
         char *type2 = lookup_type($4);
         $$=$2;
         printf("%c to %c\n", toupper(type2[0]), toupper(type1[0]));
+        fprintf(fout, "%c2%c\n", type2[0], type1[0]);
     }
 ;
 
