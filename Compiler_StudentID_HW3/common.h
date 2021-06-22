@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+
+
 typedef struct row
 {
     int index, addr, lineno;
@@ -21,5 +23,7 @@ typedef struct scope
     int row_num;
     struct row c[50];
 } scope;
+
+
 
 #endif /* COMMON_H */

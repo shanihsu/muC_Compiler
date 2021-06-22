@@ -38,9 +38,9 @@
     int scope_num = 0;
     int addr = 0;
     int once = -1;
+    int isline = 0;
 %}
 
-%error-verbose
 
 /* Use variable or self-defined structure to represent
  * nonterminal and token type
@@ -54,9 +54,9 @@
     /* ... */
 }
 /* Token without return */
-%token INT FLOAT BOOL STRING ASSIGN ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN QUO_ASSIGN REM_ASSIGN
+%token <type_val> INT FLOAT BOOL STRING ASSIGN ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN QUO_ASSIGN REM_ASSIGN
 %token SEMICOLON LPAREN RPAREN LBRACK RBRACK LBRACE RBRACE
-%token OR AND EQL NEQ LEQ GEQ LSS GTR NOT
+%token <type_val> OR AND EQL NEQ LEQ GEQ LSS GTR NOT
 %token IF ELSE FOR WHILE TRUE FALSE RETURN
 
 /* Token with return, which need to sepcify type */
@@ -105,10 +105,13 @@ Literal
     }
     | FLOAT_LIT {
         $$="float";
+        fprintf(fout, "ldc %f\n", $1);
         printf("FLOAT_LIT %f\n", $1);
     }
     | STRING_LIT {
         $$="string";
+        char *str = strdup($1);
+        fprintf(fout, "ldc \"%s\"\n", str);
         printf("STRING_LIT %s\n", $1);
     }
     | BOOL_LIT {
@@ -121,7 +124,6 @@ Statement
     : DeclarationStmt 
     | AssignmentStmt
     | IncDecStmt
-    | Block
     | IfStmt
     | WhileStmt
     | ForStmt
@@ -132,7 +134,18 @@ Statement
 PrintStmt
     : PRINT LPAREN Expression RPAREN SEMICOLON {
         printf("%s %s\n", $1, lookup_type($3));
-        fprintf(fout, "%s %s\n", $1, lookup_type($3));
+        char *type = lookup_type($3);
+        fprintf(fout, "getstatic java/lang/System/out Ljava/io/PrintStream;\n");
+        fprintf(fout, "swap\n");
+        fprintf(fout, "invokevirtual java/io/PrintStream/print(");
+        if (strcmp(type, "int") == 0)
+            fprintf(fout, "I");
+        else if (strcmp(type, "float") == 0)
+            fprintf(fout, "F");
+        else if (strcmp(type, "string") == 0)
+            fprintf(fout, "Ljava/lang/String;");
+        
+        fprintf(fout, ")V\n");
     }
 ;
 
@@ -142,11 +155,11 @@ Expression
         char *third = lookup_type($3);
         char *rem = "REM", *f = "float", *a = "AND", *o = "OR", *b = "bool";
         if(strcmp($2, rem) == 0 && (strcmp(first, f) == 0 || strcmp(third, f) == 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on float)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on float)\n", yylineno, $2);
         }else if((strcmp($2, a) == 0 || strcmp($2, o) == 0) && (strcmp(first, b) != 0 || strcmp(third, b) != 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on int)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on int)\n", yylineno, $2);
         }else if(strcmp(first, third) != 0){
-            printf("error\:%d\: invalid operation\: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
+            printf("error:%d: invalid operation: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
         }else if(strcmp(first, third) == 0){
             $$=first;
         }
@@ -162,11 +175,11 @@ Expression1
         char *third = lookup_type($3);
         char *rem = "REM", *f = "float", *a = "AND", *o = "OR", *b = "bool";
         if(strcmp($2, rem) == 0 && (strcmp(first, f) == 0 || strcmp(third, f) == 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on float)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on float)\n", yylineno, $2);
         }else if((strcmp($2, a) == 0 || strcmp($2, o) == 0) && (strcmp(first, b) != 0 || strcmp(third, b) != 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on int)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on int)\n", yylineno, $2);
         }else if(strcmp(first, third) != 0){
-            printf("error\:%d\: invalid operation\: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
+            printf("error:%d: invalid operation: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
         }else if(strcmp(first, third) == 0){
             $$=first;
         }
@@ -182,11 +195,11 @@ Expression2
         char *third = lookup_type($3);
         char *rem = "REM", *f = "float", *a = "AND", *o = "OR", *b = "bool";
         if(strcmp($2, rem) == 0 && (strcmp(first, f) == 0 || strcmp(third, f) == 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on float)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on float)\n", yylineno, $2);
         }else if((strcmp($2, a) == 0 || strcmp($2, o) == 0) && (strcmp(first, b) != 0 || strcmp(third, b) != 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on int)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on int)\n", yylineno, $2);
         }else if(strcmp(first, third) != 0){
-            printf("error\:%d\: invalid operation\: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
+            printf("error:%d: invalid operation: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
         }else if(strcmp(first, third) == 0){
             $$="bool";
         }
@@ -201,16 +214,23 @@ Expression3
         char *first = lookup_type($1);
         char *third = lookup_type($3);
         char *rem = "REM", *f = "float", *a = "AND", *o = "OR", *b = "bool";
+        char *ad = "ADD", *su = "SUB";
         if(strcmp($2, rem) == 0 && (strcmp(first, f) == 0 || strcmp(third, f) == 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on float)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on float)\n", yylineno, $2);
         }else if((strcmp($2, a) == 0 || strcmp($2, o) == 0) && (strcmp(first, b) != 0 || strcmp(third, b) != 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on int)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on int)\n", yylineno, $2);
         }else if(strcmp(first, third) != 0){
-            printf("error\:%d\: invalid operation\: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
+            printf("error:%d: invalid operation: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
         }else if(strcmp(first, third) == 0){
             $$=first;
         }
         printf("%s\n", $2);
+        if(strcmp($2, ad) == 0){
+            fprintf(fout, "%cadd\n", first[0]);
+        }else if(strcmp($2, su) == 0){
+            fprintf(fout, "%csub\n", first[0]);
+        }
+        
     }
     | Expression4{$$=$1;}
 ;
@@ -220,16 +240,24 @@ Expression4
         char *first = lookup_type($1);
         char *third = lookup_type($3);
         char *rem = "REM", *f = "float", *a = "AND", *o = "OR", *b = "bool";
+        char *mu = "MUL", *q = "QUO", *r = "REM";
         if(strcmp($2, rem) == 0 && (strcmp(first, f) == 0 || strcmp(third, f) == 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on float)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on float)\n", yylineno, $2);
         }else if((strcmp($2, a) == 0 || strcmp($2, o) == 0) && (strcmp(first, b) != 0 || strcmp(third, b) != 0)){
-            printf("error\:%d\: invalid operation\: (operator %s not defined on int)\n", yylineno, $2);
+            printf("error:%d: invalid operation: (operator %s not defined on int)\n", yylineno, $2);
         }else if(strcmp(first, third) != 0){
-            printf("error\:%d\: invalid operation\: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
+            printf("error:%d: invalid operation: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
         }else if(strcmp(first, third) == 0){
             $$=first;
         }
         printf("%s\n", $2);
+        if(strcmp($2, mu) == 0){
+            fprintf(fout, "%cmul\n", first[0]);
+        }else if(strcmp($2, q) == 0){
+            fprintf(fout, "%cdiv\n", first[0]);
+        }else if(strcmp($2, r) == 0){
+            fprintf(fout, "%s\n", "irem");
+        }
     }
     | Expression5{$$=$1;}
 ;
@@ -298,12 +326,16 @@ PrimaryExpr
 
 Operand
     : '"' Literal '"'{$$=$2;}
-    | Literal{$$=$1;}
+    | Literal{
+        $$=$1;
+    }
     | IDENT { 
         $$ = $1;
-        int addr = lookup_symbol($1, 0);
+        int addr = lookup_symbol($1, 0);  
+        char *t = lookup_type($1);
+        fprintf(fout, "%cload %d\n", t[0], addr);
         if(addr == -1){
-            printf("error\:%d\: undefined\: %s\n",yylineno,$1);
+            printf("error:%d: undefined: %s\n",yylineno,$1);
             $$="er";
         }else{
             printf("IDENT (name=%s, address=%d)\n", $1, addr); 
@@ -323,7 +355,13 @@ IndexExpr
 ;
 
 ConversionExpr
-    : LPAREN Type RPAREN Expression {
+    : LPAREN Type RPAREN IDENT {
+        char *type1 = $2;
+        char *type2 = lookup_type($4);
+        $$=$2;
+        printf("%c to %c\n", toupper(type2[0]), toupper(type1[0]));
+    }
+    | LPAREN Type RPAREN Literal {
         char *type1 = $2;
         char *type2 = lookup_type($4);
         $$=$2;
@@ -334,21 +372,21 @@ ConversionExpr
 DeclarationStmt
     : Type IDENT SEMICOLON {
         if(insert_symbol($2, $1, 0) == -1){
-            printf("error\:%d\: %s redeclared in this block. previous declaration at line %d\n", yylineno, $2, lookup_symbol($2, 1));
+            printf("error:%d: %s redeclared in this block. previous declaration at line %d\n", yylineno, $2, lookup_symbol($2, 1));
         }else{
             int row_num = t[scope_num-1].row_num-1;
-            printf("> Insert {%s} into symbol table (scope level\: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
+            printf("> Insert {%s} into symbol table (scope level: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
         }
     }
     | Type IDENT ASSIGN Expression SEMICOLON {
         insert_symbol($2, $1, 0);
         int row_num = t[scope_num-1].row_num-1;
-        printf("> Insert {%s} into symbol table (scope level\: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
+        printf("> Insert {%s} into symbol table (scope level: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
     }
     | Type IDENT LBRACK Expression RBRACK SEMICOLON {
         insert_symbol($2, $1, 1);
         int row_num = t[scope_num-1].row_num-1;
-        printf("> Insert {%s} into symbol table (scope level\: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
+        printf("> Insert {%s} into symbol table (scope level: %d)\n", t[scope_num-1].c[row_num].name, t[scope_num-1].scope_level);
     }
 ;
 
@@ -359,9 +397,9 @@ AssignmentExpr
         char *er = "er";
         char *i = "int";
         if(strcmp(first, third) != 0 && strcmp(er, $1) != 0 && strcmp($3, er) != 0){
-            printf("error\:%d\: invalid operation\: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
+            printf("error:%d: invalid operation: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
         }else if(strcmp(i, $1) == 0){
-            printf("error\:%d\: cannot assign to int\n", yylineno);
+            printf("error:%d: cannot assign to int\n", yylineno);
         }
         printf("%s\n", $2);
     }
@@ -381,8 +419,40 @@ assign_op
 ;
 
 IncDecExpr
-    : Expression INC {printf("INC\n");}
-    | Expression DEC {printf("DEC\n");}
+    : IDENT INC {
+        printf("INC\n");
+        int addr = lookup_symbol($1, 0);
+        char *t = lookup_type($1);
+        char *f = "float";
+        if(strcmp(t, f) == 0){
+            fprintf(fout, "fload %d\n", addr);
+            fprintf(fout, "ldc 1.0\n");
+            fprintf(fout, "fadd\n");
+            fprintf(fout, "fstore %d\n", addr);    
+        }else{
+            fprintf(fout, "iload %d\n", addr);
+            fprintf(fout, "ldc 1\n");
+            fprintf(fout, "iadd\n");
+            fprintf(fout, "istore %d\n", addr);
+        }
+    }
+    | IDENT DEC {
+        printf("DEC\n");
+        int addr = lookup_symbol($1, 0);
+        char *t = lookup_type($1);
+        char *f = "float";
+        if(strcmp(t, f) == 0){
+            fprintf(fout, "fload %d\n", addr);
+            fprintf(fout, "ldc 1.0\n");
+            fprintf(fout, "fsub\n");
+            fprintf(fout, "fstore %d\n", addr);    
+        }else{
+            fprintf(fout, "iload %d\n", addr);
+            fprintf(fout, "ldc 1\n");
+            fprintf(fout, "isub\n");
+            fprintf(fout, "istore %d\n", addr);
+        }
+    }
 ;
 
 IncDecStmt
@@ -410,14 +480,14 @@ Condition
         char *first = lookup_type($1);
         char *third = lookup_type($3);
         if((strcmp($2, a)==0 || strcmp($2, s)==0 || strcmp($2, m)==0 || strcmp($2, q)==0 || strcmp($2, r)==0) && strcmp(first, third) == 0){
-            printf("error\:%d\: non-bool (type %s) used as for condition\n", yylineno+1,first);
+            printf("error:%d: non-bool (type %s) used as for condition\n", yylineno+1,first);
         }
     }
     | UnaryExpr{
         char *b = "bool";
         char *t = lookup_type($1);
         if(strcmp(b, t) != 0){
-            printf("error\:%d\: non-bool (type %s) used as for condition\n", yylineno+1,t);
+            printf("error:%d: non-bool (type %s) used as for condition\n", yylineno+1,t);
         }
     }
 ;
@@ -481,16 +551,16 @@ static int insert_symbol(char *name, char *typename, int judge){
         char *tmp = "-";
         t[scope_num-1].c[row_num].element_type = strdup(tmp);
     }
+    fprintf(fout, "%cstore %d\n", typename[0], addr);
     t[scope_num-1].row_num++;
     addr++;
+    return 0;
 }
 
 static int lookup_symbol(char * name, int ty){
-    int not_find = 0;
     for(int i = scope_num - 1; i >= 0; i--){
         for(int j = 0; j < t[i].row_num; j++){
             if(strcmp(t[i].c[j].name, name) == 0){
-                not_find = 1;
                 if(ty == 0){
                     return t[i].c[j].addr;
                 }else if(ty == 1){
@@ -499,39 +569,30 @@ static int lookup_symbol(char * name, int ty){
             }
         }
     }
-    if(not_find == 0){
-        return -1;
-    }
+    return -1;
 }
     
 static int lookup_table(char *name){
-    int not_find = 0;
     int i = scope_num - 1;
     for(int j = 0; j < t[i].row_num; j++){
         if(strcmp(t[i].c[j].name, name) == 0){
-            not_find = 1;
             return t[i].c[j].addr;
         }
     }
-    if(not_find == 0){
-        return -1;
-    }
+    return -1;
 }
 
 static char* lookup_type(char *name){
-    int not_find = 0;
     char *str_int = "int";
     char *str_float = "float";
     char *str_string = "string";
     char *str_bool = "bool";
     if(strcmp(name, str_int) == 0 || strcmp(name, str_float) == 0 || strcmp(name, str_string) == 0 || strcmp(name, str_bool) == 0){
-        not_find = 1;
         return name;
     }
     for(int i = scope_num - 1; i >= 0; i--){
         for(int j = 0; j < t[i].row_num; j++){
             if(strcmp(t[i].c[j].name, name) == 0){
-                not_find = 1;
                 char *tmp = "array";
                 if(strcmp(t[i].c[j].type_name, tmp) == 0){
                     return t[i].c[j].element_type;
@@ -542,9 +603,7 @@ static char* lookup_type(char *name){
             }
         }
     }
-    if(not_find == 0){
-        return "-";
-    }
+    return "-";
 }
 
 static void dump_symbol(){
