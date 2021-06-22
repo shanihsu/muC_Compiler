@@ -38,7 +38,8 @@
     int scope_num = 0;
     int addr = 0;
     int once = -1;
-    int isline = 0;
+    int cmpcount = 0;
+    int boolcount = 0;
 %}
 
 
@@ -117,6 +118,11 @@ Literal
     | BOOL_LIT {
         $$="bool";
         printf("%s\n", $1);
+        if(strcmp($1, "TRUE")){
+            fprintf(fout, "iconst_1\n");
+        }else if(strcmp($1, "FALSE")){
+            fprintf(fout, "iconst_0\n");
+        }
     }
 ;
 
@@ -135,6 +141,15 @@ PrintStmt
     : PRINT LPAREN Expression RPAREN SEMICOLON {
         printf("%s %s\n", $1, lookup_type($3));
         char *type = lookup_type($3);
+        if(strcmp(type, "bool") == 0){
+            fprintf(fout, "ifne L_printf_cmp_%d\n", boolcount*2);
+            fprintf(fout, "ldc \"false\"\n");
+            fprintf(fout, "goto L_printf_cmp_%d\n", boolcount*2+1);
+            fprintf(fout, "L_printf_cmp_%d:\n", boolcount*2);
+            fprintf(fout, "ldc \"true\"\n");
+            fprintf(fout, "L_printf_cmp_%d:\n", boolcount*2+1);
+            boolcount++;
+        }
         fprintf(fout, "getstatic java/lang/System/out Ljava/io/PrintStream;\n");
         fprintf(fout, "swap\n");
         fprintf(fout, "invokevirtual java/io/PrintStream/print(");
@@ -142,7 +157,7 @@ PrintStmt
             fprintf(fout, "I");
         else if (strcmp(type, "float") == 0)
             fprintf(fout, "F");
-        else if (strcmp(type, "string") == 0)
+        else if (strcmp(type, "string") == 0 || strcmp(type, "bool") == 0)
             fprintf(fout, "Ljava/lang/String;");
         
         fprintf(fout, ")V\n");
@@ -164,6 +179,7 @@ Expression
             $$=first;
         }
         printf("%s\n", $2);
+        fprintf(fout, "ior\n");
     }
     | Expression1{$$=$1;}
 ;
@@ -184,6 +200,7 @@ Expression1
             $$=first;
         }
         printf("%s\n", $2);
+        fprintf(fout, "iand\n");
     }
     | Expression2{$$=$1;}
 ;
@@ -202,6 +219,17 @@ Expression2
             printf("error:%d: invalid operation: %s (mismatched types %s and %s)\n", yylineno, $2, first, third);
         }else if(strcmp(first, third) == 0){
             $$="bool";
+            if(strcmp(first, "int") == 0)
+                fprintf(fout, "isub\n");
+            else
+                fprintf(fout, "fcmpl\n");
+            fprintf(fout, "if%s L_cmp_%d\n", $2, cmpcount*2);
+            fprintf(fout, "iconst_0\n");
+            fprintf(fout, "goto L_cmp_%d\n", cmpcount*2+1);
+            fprintf(fout, "L_cmp_%d:\n", cmpcount*2);
+            fprintf(fout, "iconst_1\n");
+            fprintf(fout, "L_cmp_%d:\n", cmpcount*2+1);
+            cmpcount++;
         }
         printf("%s\n", $2);
     }
@@ -270,9 +298,20 @@ Expression5
 
 UnaryExpr
     : PrimaryExpr {$$=$1;}
-    | unary_op UnaryExpr {
-        $$=$2;
-        printf("%s\n", $1);
+    | unary_op {
+            char *n = "NOT";
+            if(strcmp(n, $1) == 0)
+            fprintf(fout, "iconst_1\n");
+        }UnaryExpr {
+            $$=$3;
+            printf("%s\n", $1);
+            char *u = "NEG", *n = "NOT";
+            char *t = lookup_type($3);
+            if(strcmp(u, $1) == 0){
+                fprintf(fout, "%cneg\n", t[0]);
+            }else if(strcmp(n, $1) == 0){
+                fprintf(fout, "ixor\n");
+            }
     }
 ;
 
@@ -293,12 +332,12 @@ and_op
 ;
 
 cmp_op
-    : EQL 
-    | NEQ 
-    | LEQ
-    | GEQ 
-    | LSS 
-    | GTR 
+    : EQL { $$ = "eq"; }
+    | NEQ { $$ = "ne"; }
+    | LEQ { $$ = "le"; }
+    | GEQ { $$ = "ge"; }
+    | LSS { $$ = "lt"; }
+    | GTR { $$ = "gt"; }
 ;
 
 add_op
@@ -315,7 +354,7 @@ mul_op
 unary_op
     : ADD {$$="POS";}
     | SUB {$$="NEG";}
-    | NOT 
+    | NOT {$$="NOT";}
 ;
 
 PrimaryExpr
