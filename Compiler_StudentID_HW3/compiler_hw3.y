@@ -118,9 +118,9 @@ Literal
     | BOOL_LIT {
         $$="bool";
         printf("%s\n", $1);
-        if(strcmp($1, "TRUE")){
+        if(strcmp($1, "TRUE") == 0){
             fprintf(fout, "iconst_1\n");
-        }else if(strcmp($1, "FALSE")){
+        }else if(strcmp($1, "FALSE") == 0){
             fprintf(fout, "iconst_0\n");
         }
     }
@@ -372,7 +372,12 @@ Operand
         $$ = $1;
         int addr = lookup_symbol($1, 0);  
         char *t = lookup_type($1);
-        fprintf(fout, "%cload %d\n", t[0], addr);
+        if(strcmp(t, "string") == 0)
+            fprintf(fout, "aload %d\n", addr);    
+        else if(strcmp(t, "bool") == 0)
+            fprintf(fout, "iload %d\n", addr);    
+        else
+            fprintf(fout, "%cload %d\n", t[0], addr);
         if(addr == -1){
             printf("error:%d: undefined: %s\n",yylineno,$1);
             $$="er";
@@ -410,6 +415,14 @@ ConversionExpr
 
 DeclarationStmt
     : Type IDENT SEMICOLON {
+        if (strcmp($1, "int") == 0)
+            fprintf(fout, "ldc 0\n");
+        else if (strcmp($1, "float") == 0)
+            fprintf(fout, "ldc 0.0\n");
+        else if (strcmp($1, "string") == 0)
+            fprintf(fout, "ldc \"\"\n");
+        else if (strcmp($1, "bool") == 0)
+            fprintf(fout, "iconst_0\n");
         if(insert_symbol($2, $1, 0) == -1){
             printf("error:%d: %s redeclared in this block. previous declaration at line %d\n", yylineno, $2, lookup_symbol($2, 1));
         }else{
@@ -441,6 +454,24 @@ AssignmentExpr
             printf("error:%d: cannot assign to int\n", yylineno);
         }
         printf("%s\n", $2);
+        if(strcmp($2, "ADD_ASSIGN") == 0){
+            fprintf(fout, "%cadd\n", first[0]);
+        }else if(strcmp($2, "SUB_ASSIGN") == 0){
+            fprintf(fout, "%csub\n", first[0]);
+        }else if(strcmp($2, "MUL_ASSIGN") == 0){
+            fprintf(fout, "%cmul\n", first[0]);
+        }else if(strcmp($2, "QUO_ASSIGN") == 0){
+            fprintf(fout, "%cdiv\n", first[0]);
+        }else if(strcmp($2, "REM_ASSIGN") == 0){
+            fprintf(fout, "irem\n");
+        }
+        int addr = lookup_symbol($1, 0);
+        if(strcmp(first, "string") == 0)
+            fprintf(fout, "astore %d\n", addr);
+        else if(strcmp(first, "bool") == 0)
+            fprintf(fout, "istore %d\n", addr);
+        else
+            fprintf(fout, "%cstore %d\n", first[0], addr);
     }
 ;
 
@@ -449,10 +480,10 @@ AssignmentStmt
 ;
 
 assign_op
-    : ASSIGN
-    | ADD_ASSIGN
-    | SUB_ASSIGN
-    | MUL_ASSIGN
+    : ASSIGN 
+    | ADD_ASSIGN 
+    | SUB_ASSIGN 
+    | MUL_ASSIGN 
     | QUO_ASSIGN
     | REM_ASSIGN
 ;
@@ -590,7 +621,12 @@ static int insert_symbol(char *name, char *typename, int judge){
         char *tmp = "-";
         t[scope_num-1].c[row_num].element_type = strdup(tmp);
     }
-    fprintf(fout, "%cstore %d\n", typename[0], addr);
+    if(strcmp(typename, "string") == 0)
+        fprintf(fout, "astore %d\n", addr);
+    else if(strcmp(typename, "bool") == 0)
+        fprintf(fout, "istore %d\n", addr);
+    else
+        fprintf(fout, "%cstore %d\n", typename[0], addr);
     t[scope_num-1].row_num++;
     addr++;
     return 0;
